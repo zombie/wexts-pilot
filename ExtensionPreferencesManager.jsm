@@ -20,7 +20,7 @@
  *              values that correspond to the prefs to be set.
  */
 
-var EXPORTED_SYMBOLS = ["ExtensionPreferencesManager"];
+this.EXPORTED_SYMBOLS = ["ExtensionPreferencesManager"];
 
 const {Management} = ChromeUtils.import("resource://gre/modules/Extension.jsm", {});
 
@@ -147,7 +147,7 @@ async function processSetting(id, name, action) {
   return false;
 }
 
-this.ExtensionPreferencesManager = {
+var ExtensionPreferencesManager = {
   /**
    * Adds a setting to the settingsMap. This is how an API tells the
    * preferences manager what its setting object is. The preferences
@@ -308,7 +308,7 @@ this.ExtensionPreferencesManager = {
    * @param {string} name
    *        The unique id of the setting.
    *
-   * @returns {Object} The current setting object.
+   * @returns {Promise<object>} The current setting object.
    */
   async getSetting(name) {
     await ExtensionSettingsStore.initialize();

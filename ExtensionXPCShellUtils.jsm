@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["ExtensionTestUtils"];
+this.EXPORTED_SYMBOLS = ["ExtensionTestUtils"];
 
 ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -74,6 +74,7 @@ function frameScript() {
   MessageChannel.addListener(this, "Test:Fetch", messageListener);
 
   // eslint-disable-next-line mozilla/balanced-listeners, no-undef
+  // @ts-ignore
   addEventListener("MozHeapMinimize", () => {
     Services.obs.notifyObservers(null, "memory-pressure", "heap-minimize");
   }, true, true);
@@ -131,6 +132,7 @@ class ContentPage {
 
     let chromeDoc = await promiseDocumentLoaded(chromeShell.document);
 
+    /** @type {*} */
     let browser = chromeDoc.createElement("browser");
     browser.setAttribute("type", "content");
     browser.setAttribute("disableglobalhistory", "true");
@@ -142,7 +144,7 @@ class ContentPage {
       browser.sameProcessAsFrameLoader = this.extension.groupFrameLoader;
     }
 
-    let awaitFrameLoader = Promise.resolve();
+    let awaitFrameLoader = Promise.resolve(null);
     if (this.remote) {
       awaitFrameLoader = promiseEvent(browser, "XULFrameLoaderCreated");
       browser.setAttribute("remote", "true");
@@ -207,6 +209,7 @@ class ExtensionWrapper {
     this.testScope = testScope;
 
     this.extension = null;
+    this.addon = null;
 
     this.handleResult = this.handleResult.bind(this);
     this.handleMessage = this.handleMessage.bind(this);
@@ -785,7 +788,7 @@ var ExtensionTestUtils = {
    *        An optional URL that the initial page is expected to
    *        redirect to.
    *
-   * @returns {ContentPage}
+   * @returns {Promise<ContentPage>}
    */
   loadContentPage(url, {extension = undefined, remote = undefined, redirectUrl = undefined} = {}) {
     ContentTask.setTestScope(this.currentScope);

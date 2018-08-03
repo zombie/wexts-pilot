@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["Dictionary", "Extension", "ExtensionData", "Langpack"];
+this.EXPORTED_SYMBOLS = ["Dictionary", "Extension", "ExtensionData", "Langpack"];
 
 /* exported Extension, ExtensionData */
 /* globals Extension ExtensionData */
@@ -81,6 +81,7 @@ ChromeUtils.import("resource://gre/modules/ExtensionCommon.jsm");
 ChromeUtils.import("resource://gre/modules/ExtensionParent.jsm");
 ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
 
+var aomStartup, spellCheck, uuidGen;
 XPCOMUtils.defineLazyServiceGetters(this, {
   aomStartup: ["@mozilla.org/addons/addon-manager-startup;1", "amIAddonManagerStartup"],
   spellCheck: ["@mozilla.org/spellchecker/engine;1", "mozISpellCheckingEngine"],
@@ -286,7 +287,7 @@ UninstallObserver.init();
  * No functionality of this class is guaranteed to work before
  * `loadManifest` has been called, and completed.
  */
-class ExtensionData {
+var ExtensionData = class ExtensionData {
   constructor(rootURI) {
     this.rootURI = rootURI;
     this.resourceURL = rootURI.spec;
@@ -303,6 +304,11 @@ class ExtensionData {
     this.permissions = new Set();
 
     this.startupData = null;
+
+    this.baseURI = null;
+    this.experimentsAllowed = null;
+    this.isPrivileged = null;
+    this.principal = null;
 
     this.errors = [];
     this.warnings = [];
@@ -854,6 +860,7 @@ class ExtensionData {
   }
 
   getAPIManager() {
+    /** @type {SchemaAPIManager[]} */
     let apiManagers = [Management];
 
     for (let id of this.dependencies) {
@@ -1019,9 +1026,11 @@ class ExtensionData {
    *
    * @param {object} info Information about the permissions being requested.
    *
-   * @param {array<string>} info.permissions.origins
+   * @param {object} info.permissions
+   * 
+   * @param {Array<string>} info.permissions.origins
    *                        Origin permissions requested.
-   * @param {array<string>} info.permissions.permissions
+   * @param {Array<string>} info.permissions.permissions
    *                        Regular (non-origin) permissions requested.
    * @param {boolean} info.unsigned
    *                  True if the prompt is for installing an unsigned addon.
@@ -1203,6 +1212,8 @@ class BootstrapScope {
   }
 }
 
+/** @type {any} */
+BootstrapScope.prototype.BOOTSTRAP_REASON_TO_STRING_MAP;
 XPCOMUtils.defineLazyGetter(BootstrapScope.prototype, "BOOTSTRAP_REASON_TO_STRING_MAP", () => {
   const {BOOTSTRAP_REASONS} = AddonManagerPrivate;
 
@@ -1222,13 +1233,14 @@ class DictionaryBootstrapScope extends BootstrapScope {
   install(data, reason) {}
   uninstall(data, reason) {}
 
+  // @ts-ignore issue#26131
   startup(data, reason) {
     // eslint-disable-next-line no-use-before-define
     this.dictionary = new Dictionary(data);
     return this.dictionary.startup(this.BOOTSTRAP_REASON_TO_STRING_MAP[reason]);
   }
 
-  shutdown(data, reason) {
+  async shutdown(data, reason) {
     this.dictionary.shutdown(this.BOOTSTRAP_REASON_TO_STRING_MAP[reason]);
     this.dictionary = null;
   }
@@ -1255,9 +1267,8 @@ let activeExtensionIDs = new Set();
 /**
  * This class is the main representation of an active WebExtension
  * in the main process.
- * @extends ExtensionData
  */
-class Extension extends ExtensionData {
+var Extension = class Extension extends ExtensionData {
   constructor(addonData, startupReason) {
     super(addonData.resourceURI);
 
@@ -1920,7 +1931,7 @@ class Extension extends ExtensionData {
   }
 }
 
-class Dictionary extends ExtensionData {
+var Dictionary = class Dictionary extends ExtensionData {
   constructor(addonData, startupReason) {
     super(addonData.resourceURI);
     this.id = addonData.id;
@@ -1950,7 +1961,7 @@ class Dictionary extends ExtensionData {
   }
 }
 
-class Langpack extends ExtensionData {
+var Langpack = class Langpack extends ExtensionData {
   constructor(addonData, startupReason) {
     super(addonData.resourceURI);
     this.startupData = addonData.startupData;

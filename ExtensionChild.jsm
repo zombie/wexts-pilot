@@ -7,7 +7,7 @@
 
 /* exported ExtensionChild */
 
-var EXPORTED_SYMBOLS = ["ExtensionChild"];
+this.EXPORTED_SYMBOLS = ["ExtensionChild"];
 
 /*
  * This file handles addon logic that is independent of the chrome process.
@@ -124,17 +124,18 @@ Services.obs.addObserver(StrongPromise, "extensions-sendMessage-witness");
 
 /**
  * Abstraction for a Port object in the extension API.
- *
- * @param {BaseContext} context The context that owns this port.
- * @param {nsIMessageSender} senderMM The message manager to send messages to.
- * @param {Array<nsIMessageListenerManager>} receiverMMs Message managers to
- *     listen on.
- * @param {string} name Arbitrary port name as defined by the addon.
- * @param {number} id An ID that uniquely identifies this port's channel.
- * @param {object} sender The `port.sender` property.
- * @param {object} recipient The recipient of messages sent from this port.
  */
 class Port {
+  /**
+   * @param {BaseContext} context The context that owns this port.
+   * @param {nsIMessageSender} senderMM The message manager to send messages to.
+   * @param {Array<nsIMessageListenerManager>} receiverMMs Message managers to
+   *     listen on.
+   * @param {string} name Arbitrary port name as defined by the addon.
+   * @param {number} id An ID that uniquely identifies this port's channel.
+   * @param {object} sender The `port.sender` property.
+   * @param {object} recipient The recipient of messages sent from this port.
+   */
   constructor(context, senderMM, receiverMMs, name, id, sender, recipient) {
     this.context = context;
     this.senderMM = senderMM;
@@ -344,27 +345,28 @@ class NativePort extends Port {
 /**
  * Each extension context gets its own Messenger object. It handles the
  * basics of sendMessage, onMessage, connect and onConnect.
- *
- * @param {BaseContext} context The context to which this Messenger is tied.
- * @param {Array<nsIMessageListenerManager>} messageManagers
- *     The message managers used to receive messages (e.g. onMessage/onConnect
- *     requests).
- * @param {object} sender Describes this sender to the recipient. This object
- *     is extended further by BaseContext's sendMessage method and appears as
- *     the `sender` object to `onConnect` and `onMessage`.
- *     Do not set the `extensionId`, `contextId` or `tab` properties. The former
- *     two are added by BaseContext's sendMessage, while `sender.tab` is set by
- *     the ProxyMessenger in the main process.
- * @param {object} filter A recipient filter to apply to incoming messages from
- *     the broker. Messages are only handled by this Messenger if all key-value
- *     pairs match the `recipient` as specified by the sender of the message.
- *     In other words, this filter defines the required fields of `recipient`.
- * @param {object} [optionalFilter] An additional filter to apply to incoming
- *     messages. Unlike `filter`, the keys from `optionalFilter` are allowed to
- *     be omitted from `recipient`. Only keys that are present in both
- *     `optionalFilter` and `recipient` are applied to filter incoming messages.
  */
 class Messenger {
+  /**
+   * @param {BaseContext} context The context to which this Messenger is tied.
+   * @param {Array<nsIMessageListenerManager>} messageManagers
+   *     The message managers used to receive messages (e.g. onMessage/onConnect
+   *     requests).
+   * @param {object} sender Describes this sender to the recipient. This object
+   *     is extended further by BaseContext's sendMessage method and appears as
+   *     the `sender` object to `onConnect` and `onMessage`.
+   *     Do not set the `extensionId`, `contextId` or `tab` properties. The former
+   *     two are added by BaseContext's sendMessage, while `sender.tab` is set by
+   *     the ProxyMessenger in the main process.
+   * @param {object} filter A recipient filter to apply to incoming messages from
+   *     the broker. Messages are only handled by this Messenger if all key-value
+   *     pairs match the `recipient` as specified by the sender of the message.
+   *     In other words, this filter defines the required fields of `recipient`.
+   * @param {object} [optionalFilter] An additional filter to apply to incoming
+   *     messages. Unlike `filter`, the keys from `optionalFilter` are allowed to
+   *     be omitted from `recipient`. Only keys that are present in both
+   *     `optionalFilter` and `recipient` are applied to filter incoming messages.
+   */
   constructor(context, messageManagers, sender, filter, optionalFilter) {
     this.context = context;
     this.messageManagers = messageManagers;
@@ -602,6 +604,11 @@ class BrowserExtensionContent extends EventEmitter {
     this.id = data.id;
     this.uuid = data.uuid;
     this.instanceId = data.instanceId;
+    this.policy = null;
+
+    this.childModules = null;
+    this.dependencies = null;
+    this.schemaURLs = null;
 
     if (WebExtensionPolicy.isExtensionProcess) {
       Object.assign(this, this.getSharedData("extendedData"));
@@ -740,7 +747,7 @@ class BrowserExtensionContent extends EventEmitter {
     return ExtensionContent.getContext(this, window);
   }
 
-  emit(event, ...args) {
+  async emit(event, ...args) {
     Services.cpmm.sendAsyncMessage(this.MESSAGE_EMIT_EVENT, {event, args});
 
     super.emit(event, ...args);
@@ -1014,10 +1021,10 @@ class ChildAPIManager {
    *   hasListener methods. See SchemaAPIInterface for documentation.
    */
   getParentEvent(path) {
-    path = path.split(".");
+    let parts = path.split(".");
 
-    let name = path.pop();
-    let namespace = path.join(".");
+    let name = parts.pop();
+    let namespace = parts.join(".");
 
     let impl = new ProxyAPIImplementation(namespace, name, this);
     return {

@@ -12,7 +12,7 @@
 
 /* exported ExtensionTestCommon, MockExtension */
 
-var EXPORTED_SYMBOLS = ["ExtensionTestCommon", "MockExtension"];
+this.EXPORTED_SYMBOLS = ["ExtensionTestCommon", "MockExtension"];
 
 ChromeUtils.import("resource://gre/modules/Services.jsm");
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -55,14 +55,14 @@ XPCOMUtils.defineLazyGetter(this, "console", () => ExtensionCommon.getConsole())
  * A skeleton Extension-like object, used for testing, which installs an
  * add-on via the add-on manager when startup() is called, and
  * uninstalles it on shutdown().
- *
- * @param {string} id
- * @param {nsIFile} file
- * @param {nsIURI} rootURI
- * @param {string} installType
- * @param {boolean} [embedded = false]
  */
-class MockExtension {
+var MockExtension = class MockExtension {
+  /**
+   * @param {nsIFile} file
+   * @param {nsIURI} rootURI
+   * @param {string} installType
+   * @param {boolean} [embedded = false]
+   */
   constructor(file, rootURI, installType, embedded) {
     this.id = null;
     this.file = file;
@@ -322,7 +322,7 @@ var ExtensionTestCommon = class ExtensionTestCommon {
       }
 
       if (!instanceOf(script, "ArrayBuffer")) {
-        script = new TextEncoder("utf-8").encode(script).buffer;
+        script = new TextEncoder().encode(script).buffer;
       }
 
       let stream = Cc["@mozilla.org/io/arraybuffer-input-stream;1"].createInstance(Ci.nsIArrayBufferInputStream);
@@ -376,7 +376,7 @@ var ExtensionTestCommon = class ExtensionTestCommon {
    * new |Extension| instance which will execute it.
    *
    * @param {object} data
-   * @returns {Extension}
+   * @returns {Extension | MockExtension}
    */
   static generate(data) {
     let file = this.generateXPI(data);

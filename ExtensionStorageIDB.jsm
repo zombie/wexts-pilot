@@ -186,7 +186,7 @@ class ExtensionStorageLocalIDB extends IndexedDB {
    *        said object. Any values which are StructuredCloneHolder
    *        instances are deserialized before being stored.
    * @param {object}  options
-   * @param {function} options.serialize
+   * @param {function} [options.serialize]
    *        Set to a function which will be used to serialize the values into
    *        a StructuredCloneHolder object (if appropriate) and being sent
    *        across the processes (it is also used to detect data cloning errors
@@ -196,7 +196,7 @@ class ExtensionStorageLocalIDB extends IndexedDB {
    *        Return a promise which resolves to the computed "changes" object
    *        or null.
    */
-  async set(items, {serialize} = {}) {
+  async set(items, {serialize = null}) {
     const changes = {};
     let changed = false;
 
@@ -393,6 +393,7 @@ async function migrateJSONFileData(extension, storagePrincipal) {
     extension.logWarning(
       `storage.local data migration cancelled, unable to open IDB connection: ${err.message}::${err.stack}`);
 
+    // @ts-ignore
     DataMigrationTelemetry.recordResult({
       backend: "JSONFile",
       extensionId: extension.id,
@@ -501,7 +502,7 @@ async function migrateJSONFileData(extension, storagePrincipal) {
  * This ExtensionStorage class implements a backend for the storage.local API which
  * uses IndexedDB to store the data.
  */
-this.ExtensionStorageIDB = {
+var ExtensionStorageIDB = {
   BACKEND_ENABLED_PREF,
   IDB_MIGRATED_PREF_BRANCH,
   IDB_MIGRATE_RESULT_HISTOGRAM,
@@ -556,7 +557,7 @@ this.ExtensionStorageIDB = {
    * child context is going to ask the main process only once per child process, and on the
    * main process side the backend selection and data migration will happen only once.
    *
-   * @param {BaseContext} context
+   * @param {{extension: any, childManager?: any}} context
    *        The extension context that is selecting the storage backend.
    *
    * @returns {Promise<Object>}

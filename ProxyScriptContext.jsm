@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["ProxyScriptContext", "ProxyChannelFilter"];
+this.EXPORTED_SYMBOLS = ["ProxyScriptContext", "ProxyChannelFilter"];
 
 /* exported ProxyScriptContext, ProxyChannelFilter */
 
@@ -164,7 +164,7 @@ const ProxyInfoData = {
   /**
    * Creates a new proxy info data object using the return value of FindProxyForURL.
    *
-   * @param {Array<string>} rule A single proxy rule returned by FindProxyForURL.
+   * @param {string} rule A single proxy rule returned by FindProxyForURL.
    *    (e.g. "PROXY 1.2.3.4:8080", "SOCKS 1.1.1.1:9090" or "DIRECT")
    * @returns {nsIProxyInfo} The proxy info to apply for the given URI.
    */
@@ -178,6 +178,7 @@ const ProxyInfoData = {
       throw new ExtensionError(`ProxyInfoData: Invalid arguments passed for proxy rule: "${rule}"`);
     }
     let type = parts[0];
+    // @ts-ignore sigh
     let [host, port] = parts.length > 1 ? parts[1].split(":") : [];
 
     switch (PROXY_TYPES[type.toUpperCase()]) {

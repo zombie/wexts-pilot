@@ -13,7 +13,7 @@
 
 /* exported ExtensionParent */
 
-var EXPORTED_SYMBOLS = ["ExtensionParent"];
+this.EXPORTED_SYMBOLS = ["ExtensionParent", "StartupCache"];
 
 ChromeUtils.import("resource://gre/modules/Services.jsm");
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -32,9 +32,8 @@ XPCOMUtils.defineLazyModuleGetters(this, {
   Schemas: "resource://gre/modules/Schemas.jsm",
 });
 
-XPCOMUtils.defineLazyServiceGetters(this, {
-  aomStartup: ["@mozilla.org/addons/addon-manager-startup;1", "amIAddonManagerStartup"],
-});
+XPCOMUtils.defineLazyServiceGetter(this, "aomStartup",
+    "@mozilla.org/addons/addon-manager-startup;1", "amIAddonManagerStartup");
 
 ChromeUtils.import("resource://gre/modules/ExtensionCommon.jsm");
 ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
@@ -69,12 +68,11 @@ schemaURLs.add("chrome://extensions/content/schemas/experiments.json");
 let GlobalManager;
 let ParentAPIManager;
 let ProxyMessenger;
-let StartupCache;
 
 const global = this;
 
 // This object loads the ext-*.js scripts that define the extension API.
-let apiManager = new class extends SchemaAPIManager {
+let apiManager = new class MainApiManager extends SchemaAPIManager {
   constructor() {
     super("main", Schemas);
     this.initialized = null;
@@ -569,6 +567,7 @@ class ProxyContextParent extends BaseContext {
     this.listenerProxies = new Map();
 
     this.pendingEventBrowser = null;
+    this.sandbox = null;
 
     apiManager.emit("proxy-context-load", this);
   }
@@ -660,6 +659,7 @@ class ExtensionPageContextParent extends ProxyContextParent {
 
   // The window that contains this context. This may change due to moving tabs.
   get xulWindow() {
+    // @ts-ignore
     let win = this.xulBrowser.ownerGlobal;
     return win.docShell.rootTreeItem.domWindow;
   }
@@ -688,6 +688,7 @@ class ExtensionPageContextParent extends ProxyContextParent {
   }
 
   onBrowserChange(browser) {
+    // @ts-ignore bug 1480540
     super.onBrowserChange(browser);
     this.xulBrowser = browser;
   }
@@ -714,8 +715,6 @@ class DevToolsExtensionPageContextParent extends ExtensionPageContextParent {
     }
 
     this._devToolsToolbox = toolbox;
-
-    return toolbox;
   }
 
   get devToolsToolbox() {
@@ -728,8 +727,6 @@ class DevToolsExtensionPageContextParent extends ExtensionPageContextParent {
     }
 
     this._devToolsTarget = contextDevToolsTarget;
-
-    return contextDevToolsTarget;
   }
 
   get devToolsTarget() {
@@ -1136,7 +1133,7 @@ class HiddenXULWindow {
       }
     }
 
-    let awaitFrameLoader = Promise.resolve();
+    let awaitFrameLoader = Promise.resolve(null);
 
     if (browser.getAttribute("remote") === "true") {
       awaitFrameLoader = promiseEvent(browser, "XULFrameLoaderCreated");
@@ -1155,7 +1152,9 @@ class HiddenXULWindow {
  * to inherits the shared boilerplate code needed to create a parent document for the hidden
  * extension pages (e.g. the background page, the devtools page) in the BackgroundPage and
  * DevToolsPage classes.
- *
+ */
+class HiddenExtensionPage extends HiddenXULWindow {
+  /**
  * @param {Extension} extension
  *        The Extension which owns the hidden extension page created (used to decide
  *        if the hidden extension page parent doc is going to be a windowlessBrowser or
@@ -1164,7 +1163,6 @@ class HiddenXULWindow {
  *        The viewType of the WebExtension page that is going to be loaded
  *        in the created browser element (e.g. "background" or "devtools_page").
  */
-class HiddenExtensionPage extends HiddenXULWindow {
   constructor(extension, viewType) {
     if (!extension || !viewType) {
       throw new Error("extension and viewType parameters are mandatory");
@@ -1369,6 +1367,7 @@ function promiseExtensionViewLoaded(browser) {
  * its related extension, viewType and browser element (both the top level context and any context
  * created for the extension urls running into its iframe descendants).
  *
+ * @param {object} params
  * @param {object} params.extension
  *        The Extension on which we are going to listen for the newly created ExtensionProxyContext.
  * @param {string} params.viewType
@@ -1586,7 +1585,7 @@ let IconDetails = {
   },
 };
 
-StartupCache = {
+var StartupCache = {
   DB_NAME: "ExtensionStartupCache",
 
   STORE_NAMES: Object.freeze(["general", "locales", "manifests", "other", "permissions", "schemas"]),

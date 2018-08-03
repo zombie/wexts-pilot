@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["FindContent"];
+this.EXPORTED_SYMBOLS = ["FindContent"];
 
 /* exported FindContent */
 
@@ -57,10 +57,12 @@ class FindContent {
    * data can then be used by `highlightResults`, `_collectRectData` and `_serializeRangeData`.
    *
    * @param {object} params - the params.
-   * @param {string} queryphrase - the text to search for.
-   * @param {boolean} caseSensitive - whether to use case sensitive matches.
-   * @param {boolean} includeRangeData - whether to collect and return range data.
-   * @param {boolean} searchString - whether to collect and return rect data.
+   * @param {string} params.queryphrase - the text to search for.
+   * @param {boolean} params.caseSensitive - whether to use case sensitive matches.
+   * @param {boolean} params.includeRangeData - whether to collect and return range data.
+   * @param {boolean} params.searchString - whether to collect and return rect data.
+   * @param {boolean} params.entireWord - ???
+   * @param {boolean} params.includeRectData - ???
    *
    * @returns {object} that includes:
    *   {number} count - number of results found.
@@ -244,4 +246,3 @@ class FindContent {
     return status;
   }
 }
-

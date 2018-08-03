@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["NativeApp"];
+this.EXPORTED_SYMBOLS = ["NativeApp"];
 
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -128,7 +128,7 @@ var NativeApp = class extends EventEmitter {
   /**
    * @param {BaseContext} context The scope from where `message` originates.
    * @param {*} message A message from the extension, meant for a native app.
-   * @returns {ArrayBuffer} An ArrayBuffer that can be sent to the native app.
+   * @returns {ArrayBuffer|SharedArrayBuffer} An ArrayBuffer that can be sent to the native app.
    */
   static encodeMessage(context, message) {
     message = context.jsonStringify(message);

@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["ExtensionContent"];
+this.EXPORTED_SYMBOLS = ["ExtensionContent"];
 
 /* globals ExtensionContent */
 
@@ -74,7 +74,7 @@ var apiManager = new class extends SchemaAPIManager {
     this.initialized = false;
   }
 
-  lazyInit() {
+  async lazyInit() {
     if (!this.initialized) {
       this.initialized = true;
       this.initGlobal();
@@ -129,7 +129,7 @@ class CacheMap extends DefaultMap {
       super.get(url).timer.cancel();
     }
 
-    super.delete(url);
+    return super.delete(url);
   }
 
   clear(timeout = SCRIPT_CLEAR_TIMEOUT_MS) {
@@ -151,6 +151,7 @@ class ScriptCache extends CacheMap {
     this.options = options;
   }
 
+  /// @ts-ignore issue#24470
   defaultConstructor(url) {
     let promise = ChromeUtils.compileScript(url, this.options);
     promise.then(script => {
@@ -192,7 +193,7 @@ class BaseCSSCache extends CacheMap {
       }
     }
 
-    super.delete(key);
+    return super.delete(key);
   }
 }
 
@@ -223,6 +224,7 @@ class CSSCodeCache extends BaseCSSCache {
         throw new Error("Unexistent cached cssCode stylesheet: " + Error().stack);
       }
 
+      // @ts-ignore ??
       return super.get(hash);
     }, extension);
 
@@ -312,7 +314,7 @@ class Script {
   }
 
   get requiresCleanup() {
-    return !this.removeCss && (this.css.length > 0 || this.cssCodeHash);
+    return !this.removeCSS && (this.css.length > 0 || this.cssCodeHash);
   }
 
   async addCSSCode(cssCode) {
@@ -396,7 +398,7 @@ class Script {
    * Tries to inject this script into the given window and sandbox, if
    * there are pending operations for the window's current load state.
    *
-   * @param {BaseContext} context
+   * @param {ContentScriptContextChild} context
    *        The content script context into which to inject the scripts.
    * @returns {Promise<any>}
    *        Resolves to the last value in the evaluated script, when
@@ -603,6 +605,7 @@ class ContentScriptContextChild extends BaseContext {
 
     this.url = contentWindow.location.href;
 
+    this.chromeObj = null;
     defineLazyGetter(this, "chromeObj", () => {
       let chromeObj = Cu.createObjectIn(this.sandbox);
 

@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["NativeManifests"];
+this.EXPORTED_SYMBOLS = ["NativeManifests"];
 
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
 

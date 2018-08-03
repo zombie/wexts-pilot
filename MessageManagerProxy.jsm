@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["MessageManagerProxy"];
+this.EXPORTED_SYMBOLS = ["MessageManagerProxy"];
 
 ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
 ChromeUtils.import("resource://gre/modules/Services.jsm");
@@ -23,7 +23,7 @@ const {
  *        The target message manager on which to send messages, or the
  *        <browser> element which owns it.
  */
-class MessageManagerProxy {
+var MessageManagerProxy = class MessageManagerProxy {
   constructor(target) {
     this.listeners = new DefaultMap(() => new Map());
     this.closed = false;

@@ -7,7 +7,7 @@
 
 /* exported ExtensionPageChild */
 
-var EXPORTED_SYMBOLS = ["ExtensionPageChild"];
+this.EXPORTED_SYMBOLS = ["ExtensionPageChild"];
 
 /**
  * This file handles privileged extension page logic that runs in the
@@ -52,8 +52,6 @@ const {
   ChildAPIManager,
   Messenger,
 } = ExtensionChild;
-
-var ExtensionPageChild;
 
 const initializeBackgroundPage = (context) => {
   // Override the `alert()` method inside background windows;
@@ -139,6 +137,7 @@ class ExtensionBaseContextChild extends BaseContext {
    * @param {string} params.viewType One of "background", "popup", "tab",
    *   "sidebar", "devtools_page" or "devtools_panel".
    * @param {number} [params.tabId] This tab's ID, used if viewType is "tab".
+   * @param {nsIURI} params.uri ??
    */
   constructor(extension, params) {
     if (!params.envType) {
@@ -254,6 +253,7 @@ class ExtensionPageContextChild extends ExtensionBaseContextChild {
    *     "background", "sidebar" and "tab" are used by `browser.extension.getViews`.
    *     "popup" is only used internally to identify page action and browser
    *     action popups and options_ui pages.
+   * @param {nsIURI} params.uri
    * @param {number} [params.tabId] This tab's ID, used if viewType is "tab".
    */
   constructor(extension, params) {
@@ -302,6 +302,8 @@ class DevToolsContextChild extends ExtensionBaseContextChild {
    * @param {string} params.viewType One of "devtools_page" or "devtools_panel".
    * @param {object} [params.devtoolsToolboxInfo] This devtools toolbox's information,
    *   used if viewType is "devtools_page" or "devtools_panel".
+   * @param {nsIURI} params.uri ?
+   * @param {*} params.tabId ??
    */
   constructor(extension, params) {
     super(extension, Object.assign(params, {envType: "devtools_child"}));
@@ -337,7 +339,7 @@ defineLazyGetter(DevToolsContextChild.prototype, "childManager", function() {
   return childManager;
 });
 
-ExtensionPageChild = {
+var ExtensionPageChild = {
   // Map<innerWindowId, ExtensionPageContextChild>
   extensionContexts: new Map(),
 
@@ -367,6 +369,7 @@ ExtensionPageChild = {
       global.docShell.isAppTab = true;
     }
 
+    // @ts-ignore
     promiseEvent(global, "DOMContentLoaded", true, event => event.target.location != "about:blank").then(() => {
       let windowId = getInnerWindowID(global.content);
       let context = this.extensionContexts.get(windowId);
@@ -403,6 +406,7 @@ ExtensionPageChild = {
                           .QueryInterface(Ci.nsIInterfaceRequestor)
                           .getInterface(Ci.nsIContentFrameMessageManager);
 
+    // @ts-ignore
     let {viewType, tabId, devtoolsToolboxInfo} = getFrameData(mm) || {};
 
     let uri = contentWindow.document.documentURIObject;

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "diagnostics": true,
+    "noEmit": true,
+    "target": "es2017",
+  },
+  "include": [
+    "*.jsm",
+    "*.ts",
+  ],
+}

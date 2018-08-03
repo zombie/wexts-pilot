@@ -30,7 +30,7 @@ XPCOMUtils.defineLazyServiceGetter(this, "contentPolicyService",
 
 XPCOMUtils.defineLazyGetter(this, "StartupCache", () => ExtensionParent.StartupCache);
 
-var EXPORTED_SYMBOLS = ["SchemaRoot", "Schemas"];
+this.EXPORTED_SYMBOLS = ["SchemaRoot", "Schemas"];
 
 const KEY_CONTENT_SCHEMAS = "extensions-framework/schemas/content";
 const KEY_PRIVILEGED_SCHEMAS = "extensions-framework/schemas/privileged";
@@ -124,7 +124,7 @@ async function readJSONAndBlobbify(url) {
  *
  * @param {object} object
  *        The object on which to define the getter.
- * @param {string|Symbol} prop
+ * @param {string|symbol} prop
  *        The property name for which to define the getter.
  * @param {function} getter
  *        The function to call in order to generate the final property
@@ -175,7 +175,7 @@ function exportLazyGetter(object, prop, getter) {
  *
  * @param {object} object
  *        The object on which to define the getter.
- * @param {string|Symbol} prop
+ * @param {string|symbol} prop
  *        The property name for which to define the getter.
  * @param {function} getter
  *        The function to call in order to generate the final property
@@ -542,21 +542,22 @@ class Context {
 /**
  * Represents a schema entry to be injected into an object. Handles the
  * injection, revocation, and permissions of said entry.
- *
- * @param {InjectionContext} context
- *        The injection context for the entry.
- * @param {Entry} entry
- *        The entry to inject.
- * @param {object} parentObject
- *        The object into which to inject this entry.
- * @param {string} name
- *        The property name at which to inject this entry.
- * @param {Array<string>} path
- *        The full path from the root entry to this entry.
- * @param {Entry} parentEntry
- *        The parent entry for the injected entry.
  */
 class InjectionEntry {
+  /**
+   * @param {InjectionContext} context
+   *        The injection context for the entry.
+   * @param {Entry} entry
+   *        The entry to inject.
+   * @param {object} parentObj
+   *        The object into which to inject this entry.
+   * @param {string} name
+   *        The property name at which to inject this entry.
+   * @param {Array<string>} path
+   *        The full path from the root entry to this entry.
+   * @param {Entry} parentEntry
+   *        The parent entry for the injected entry.
+   */
   constructor(context, entry, parentObj, name, path, parentEntry) {
     this.context = context;
     this.entry = entry;
@@ -579,6 +580,7 @@ class InjectionEntry {
     if (allowedContexts.length) {
       return allowedContexts;
     }
+    // @ts-ignore
     return this.parentEntry.defaultContexts;
   }
 
@@ -762,7 +764,7 @@ class InjectionContext extends Context {
 
   /**
    * Generate the implementation for `namespace`.`name`.
-   *
+   * 
    * @abstract
    * @param {string} namespace The full path to the namespace of the API, minus
    *     the name of the method or property. E.g. "storage.local".
@@ -978,6 +980,7 @@ const FORMATS = {
     // Our pattern just checks the format, we could still have invalid
     // values (e.g., month=99 or month=02 and day=31).  Let the Date
     // constructor do the dirty work of validating.
+    // @ts-ignore
     if (isNaN(new Date(string))) {
       throw new Error(`Invalid date string ${string}`);
     }
@@ -1082,6 +1085,8 @@ class Entry {
      * These are not parsed by the schema, but passed to `shouldInject`.
      */
     this.allowedContexts = schema.allowedContexts || [];
+
+    this.permissions = null;
   }
 
   /**
@@ -1121,7 +1126,7 @@ class Entry {
    * its `deprecated` property.
    *
    * @param {Context} context
-   * @param {value} [value]
+   * @param {*} [value]
    */
   logDeprecation(context, value = null) {
     let message = "This property is deprecated";
@@ -1145,7 +1150,7 @@ class Entry {
    * deprecation message.
    *
    * @param {Context} context
-   * @param {value} [value]
+   * @param {*} [value]
    */
   checkDeprecated(context, value = null) {
     if (this.deprecated) {
@@ -2065,6 +2070,7 @@ class TypeProperty extends Entry {
     this.type = type;
     this.writable = writable;
     this.permissions = permissions;
+    this.unsupported = null;
   }
 
   throwError(context, msg) {
@@ -2189,6 +2195,7 @@ class CallEntry extends Entry {
     this.name = name;
     this.parameters = parameters;
     this.allowAmbiguousOptionalArguments = allowAmbiguousOptionalArguments;
+    this.hasAsyncCallback = null;
   }
 
   throwError(context, msg) {
@@ -2273,6 +2280,7 @@ class CallEntry extends Entry {
 FunctionEntry = class FunctionEntry extends CallEntry {
   static parseSchema(root, schema, path) {
     // When not in DEBUG mode, we just need to know *if* this returns.
+    /** @type {any} */
     let returns = !!schema.returns;
     if (DEBUG && "returns" in schema) {
       returns = {
@@ -2489,6 +2497,7 @@ const LOADERS = {
   types: "loadType",
 };
 
+// @ts-ignore ??
 class Namespace extends Map {
   constructor(root, name, path) {
     super();
@@ -2542,6 +2551,8 @@ class Namespace extends Map {
     if (this.superNamespace) {
       this._lazySchemas.unshift(...this.superNamespace._lazySchemas);
     }
+
+    this.types = this.properties = this.functions = this.events = null;
 
     for (let type of Object.keys(LOADERS)) {
       this[type] = new DefaultMap(() => []);
@@ -2689,6 +2700,7 @@ class Namespace extends Map {
       exportLazyProperty(dest, name, () => {
         let entry = this.get(name);
 
+        // @ts-ignore ??
         return context.getDescriptor(entry, dest, name, this.path, this);
       });
     }
@@ -2713,6 +2725,7 @@ class Namespace extends Map {
     return super.keys();
   }
 
+  // @ts-ignore
   * entries() {
     for (let key of this.keys()) {
       yield [key, this.get(key)];
@@ -2856,14 +2869,15 @@ class SchemaRoots extends Namespaces {
  * A root schema namespace containing schema data which is isolated from data in
  * other schema roots. May extend a base namespace, in which case schemas in
  * this root may refer to types in a base, but not vice versa.
- *
- * @param {SchemaRoot|Array<SchemaRoot>|null} base
+ */
+var SchemaRoot = class SchemaRoot extends Namespace {
+/**
+ * @param {SchemaRoot|Array<SchemaRoot>|SchemaRoots|null} base
  *        A base schema root (or roots) from which to derive, or null.
  * @param {Map<string, Array|StructuredCloneHolder>} schemaJSON
  *        A map of schema URLs and corresponding JSON blobs from which to
  *        populate this root namespace.
  */
-class SchemaRoot extends Namespace {
   constructor(base, schemaJSON) {
     super(null, "", []);
 
@@ -2907,6 +2921,7 @@ class SchemaRoot extends Namespace {
       return ns;
     }
 
+    // @ts-ignore ??
     ns = this.base && this.base.getNamespace(name, false);
     if (ns) {
       return ns;
@@ -2926,6 +2941,7 @@ class SchemaRoot extends Namespace {
   }
 
   parseSchema(schema, path, extraProperties = []) {
+    /** @type {any} */
     let allowedProperties = DEBUG && new Set(extraProperties);
 
     if ("choices" in schema) {
@@ -3023,7 +3039,7 @@ class SchemaRoot extends Namespace {
     if (!context.injectedRoots.has(this)) {
       context.injectedRoots.add(this);
       if (this.base) {
-        this.base.injectInto(dest, context);
+      this.base.injectInto(dest, context);
       }
       super.injectInto(dest, context);
     }
@@ -3051,7 +3067,7 @@ class SchemaRoot extends Namespace {
   }
 }
 
-this.Schemas = {
+var Schemas = this.Schemas = {
   initialized: false,
 
   REVOKE: Symbol("@@revoke"),

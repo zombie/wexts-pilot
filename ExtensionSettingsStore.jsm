@@ -40,7 +40,7 @@
  *
  */
 
-var EXPORTED_SYMBOLS = ["ExtensionSettingsStore"];
+this.EXPORTED_SYMBOLS = ["ExtensionSettingsStore"];
 
 ChromeUtils.import("resource://gre/modules/osfile.jsm");
 ChromeUtils.import("resource://gre/modules/Services.jsm");
@@ -120,7 +120,7 @@ function ensureType(type) {
  *        The type of setting to be retrieved.
  * @param {string} key
  *        A string that uniquely identifies the setting.
- * @param {string} id
+ * @param {string} [id]
  *        The id of the extension for which the item is being retrieved.
  *        If no id is passed, then the highest priority item for the key
  *        is returned.
@@ -273,11 +273,12 @@ var ExtensionSettingsStore = {
    *        The value to be passed into the initialValueCallback. It defaults to
    *        the value of the key argument.
    *
-   * @returns {object | null} Either an object with properties for key and
-   *                          value, which corresponds to the item that was
-   *                          just added, or null if the item that was just
-   *                          added does not need to be set because it is not
-   *                          at the top of the precedence list.
+   * @returns {Promise<object | null>}
+   *        Either an object with properties for key and
+   *        value, which corresponds to the item that was
+   *        just added, or null if the item that was just
+   *        added does not need to be set because it is not
+   *        at the top of the precedence list.
    */
   async addSetting(id, type, key, value, initialValueCallback = () => undefined, callbackArgument = key) {
     if (typeof initialValueCallback != "function") {
@@ -390,6 +391,7 @@ var ExtensionSettingsStore = {
    * @param {string} key The key of the setting.
    */
   setByUser(type, key) {
+    // @ts-ignore sigh
     let {precedenceList} = (_store.data[type] && _store.data[type][key]) || {};
     if (!precedenceList) {
       // The setting for this key does not exist. Nothing to do.
@@ -433,7 +435,7 @@ var ExtensionSettingsStore = {
    *
    * @param {string} type The type of setting to be returned.
    * @param {string} key A string that uniquely identifies the setting.
-   * @param {string} id
+   * @param {string} [id]
    *        The id of the extension for which the setting is being retrieved.
    *        Defaults to undefined, in which case the top setting is returned.
    *
@@ -477,7 +479,7 @@ var ExtensionSettingsStore = {
    *        A string that uniquely identifies the setting, for example, a
    *        preference name.
    *
-   * @returns {string}
+   * @returns {Promise<string>}
    *          The level of control of the extension over the key.
    */
   async getLevelOfControl(id, type, key) {

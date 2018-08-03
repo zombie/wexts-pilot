@@ -10,7 +10,7 @@
 
 /* exported extensionIdToCollectionId */
 
-var EXPORTED_SYMBOLS = ["ExtensionStorageSync", "extensionStorageSync"];
+this.EXPORTED_SYMBOLS = ["ExtensionStorageSync", "extensionStorageSync"];
 
 const global = this;
 
@@ -42,6 +42,8 @@ ChromeUtils.import("resource://gre/modules/Log.jsm");
 ChromeUtils.import("resource://gre/modules/Services.jsm");
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
 ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
+
+var BulkKeyBundle, CollectionKeyManager, CommonUtils, CryptoUtils, fxAccounts, KintoHttpClient, Kinto, FirefoxAdapter, Observers, Utils;
 
 XPCOMUtils.defineLazyModuleGetters(this, {
   BulkKeyBundle: "resource://services-sync/keys.js",
@@ -128,7 +130,7 @@ function ciphertextHMAC(keyBundle, id, IV, ciphertext) {
  *
  * @param {FXAccounts} fxaService  The service to use to get the
  *     current user.
- * @returns {string} sha256 of the user's kB as a hex string
+ * @returns {Promise<string>} sha256 of the user's kB as a hex string
  */
 const getKBHash = async function(fxaService) {
   const signedInUser = await fxaService.getSignedInUser();
@@ -220,7 +222,7 @@ class EncryptionRemoteTransformer {
   /**
    * Retrieve keys to use during encryption.
    *
-   * Returns a Promise<KeyBundle>.
+   * @returns {Promise<KeyBundle>}.
    */
   getKeys() {
     throw new Error("override getKeys in a subclass");
@@ -345,6 +347,7 @@ async function storageSyncInit() {
   }
   return storageSyncInit.promise;
 }
+storageSyncInit.promise = null;
 
 // Kinto record IDs have two conditions:
 //
@@ -507,7 +510,7 @@ class CryptoCollection {
    * (-) or an underscore (_), prefix it with "ext-".
    *
    * @param {string} extensionId The extension ID to obfuscate.
-   * @returns {Promise<bytestring>} A collection ID suitable for use to sync to.
+   * @returns {Promise<ByteString>} A collection ID suitable for use to sync to.
    */
   extensionIdToCollectionId(extensionId) {
     return this.hashWithExtensionSalt(CommonUtils.encodeUTF8(extensionId), extensionId)
@@ -523,10 +526,10 @@ class CryptoCollection {
    *
    * The returned value is a base64url-encoded string of the hash.
    *
-   * @param {bytestring} value The value to be hashed.
+   * @param {ByteString} value The value to be hashed.
    * @param {string} extensionId The ID of the extension whose salt
    *                             we should use.
-   * @returns {Promise<bytestring>} The hashed value.
+   * @returns {Promise<ByteString>} The hashed value.
    */
   async hashWithExtensionSalt(value, extensionId) {
     const salts = await this.getSalts();
@@ -672,7 +675,7 @@ function cleanUpForContext(extension, context) {
  * @param {Extension} extension
  *                    The extension whose collection needs to
  *                    be opened.
- * @param {Context} context
+ * @param {Context} [context] never even used?
  *                  The context for this extension. The Collection
  *                  will shut down automatically when all contexts
  *                  close.

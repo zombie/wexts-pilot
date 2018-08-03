@@ -97,7 +97,7 @@
  *
  */
 
-var EXPORTED_SYMBOLS = ["MessageChannel"];
+this.EXPORTED_SYMBOLS = ["MessageChannel"];
 
 /* globals MessageChannel */
 
@@ -406,7 +406,7 @@ class FilteringMessageManagerMap extends Map {
    * @param {function} callback
    *     The message callback function passed to
    *     `FilteringMessageManager` constructors.
-   * @param {function} [constructor = FilteringMessageManager]
+   * @param {typeof FilteringMessageManager} [constructor = FilteringMessageManager]
    *     The constructor for the message manager class that we're
    *     mapping to.
    */
@@ -438,6 +438,7 @@ class FilteringMessageManagerMap extends Map {
 
     // XXXbz if target is really known to be a MessageListenerManager,
     // do we need this isInstance check?
+    // @ts-ignore
     if (EventTarget.isInstance(target)) {
       let onUnload = event => {
         target.removeEventListener("unload", onUnload);
@@ -457,20 +458,21 @@ class FilteringMessageManagerMap extends Map {
  * When a response has been received, or the message has been canceled,
  * this class is responsible for settling the response promise as
  * appropriate.
- *
- * @param {number} channelId
- *        The unique ID for this message.
- * @param {any} message
- *        The message contents.
- * @param {object} sender
- *        An object describing the sender of the message, used by
- *        `abortResponses` to determine whether the message should be
- *        aborted.
- * @param {ResponseManager} broker
- *        The response broker on which we're expected to receive a
- *        reply.
  */
 class PendingMessage {
+  /**
+   * @param {number} channelId
+   *        The unique ID for this message.
+   * @param {any} message
+   *        The message contents.
+   * @param {object} sender
+   *        An object describing the sender of the message, used by
+   *        `abortResponses` to determine whether the message should be
+   *        aborted.
+   * @param {ResponseManager} broker
+   *        The response broker on which we're expected to receive a
+   *        reply.
+   */
   constructor(channelId, message, sender, broker) {
     this.channelId = channelId;
     this.message = message;
@@ -487,7 +489,7 @@ class PendingMessage {
    */
   cleanup() {
     if (this.broker) {
-      this.broker.removeHandler(this.channelId, this);
+      this.broker.removeHandler(String(this.channelId), this);
       MessageChannel.pendingResponses.delete(this);
 
       this.message = null;
@@ -547,7 +549,7 @@ class PendingMessage {
   }
 }
 
-this.MessageChannel = {
+var MessageChannel = {
   init() {
     Services.obs.addObserver(this, "message-manager-close");
     Services.obs.addObserver(this, "message-manager-disconnect");
@@ -697,6 +699,8 @@ this.MessageChannel = {
 
   /**
    * Adds a message listener to the given message manager.
+   * 
+   * @typedef {*} MessageReceiver
    *
    * @param {nsIMessageListenerManager|Array<nsIMessageListenerManager>} targets
    *    The message managers on which to listen.
@@ -811,7 +815,8 @@ this.MessageChannel = {
    *    sender. This object may also be used to avoid delivering the
    *    message to the sender, and as a filter to prematurely
    *    abort responses when the sender is being destroyed.
-   *    @see `abortResponses`.
+   *    ??? ts can't parse?
+   *    see `abortResponses`.
    * @param {boolean} [options.lowPriority = false]
    *    If true, treat this as a low-priority message, and attempt to
    *    send it in the same chunk as other messages to the same target
@@ -909,10 +914,16 @@ this.MessageChannel = {
    *
    * Each handler object is a `MessageReceiver` object as passed to
    * `addListener`.
+   * 
+   * @typedef {*} MessageHandler
    *
    * @param {Array<MessageHandler>} handlers
    * @param {object} data
    * @param {nsIMessageSender|{messageManager:nsIMessageSender}} data.target
+   * @param {*} data.responseType
+   * @param {*} data.sender
+   * @param {*} data.channelId
+   * 
    */
   _handleMessage(handlers, data) {
     if (data.responseType == this.RESPONSE_NONE) {
@@ -1018,6 +1029,10 @@ this.MessageChannel = {
    *        or rejected based on the contents of the response.
    * @param {object} data
    * @param {nsIMessageSender|{messageManager:nsIMessageSender}} data.target
+   * @param {*} data.messageName
+   * @param {*} data.result
+   * @param {*} data.value
+   * @param {*} data.error
    */
   _handleResponse(handler, data) {
     // If we have an error at this point, we have handler to report it to,

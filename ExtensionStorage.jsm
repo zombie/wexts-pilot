@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-var EXPORTED_SYMBOLS = ["ExtensionStorage"];
+this.EXPORTED_SYMBOLS = ["ExtensionStorage"];
 
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
 ChromeUtils.import("resource://gre/modules/Services.jsm");
@@ -149,11 +149,11 @@ var ExtensionStorage = {
    * Sanitizes the given value, and returns a JSON-compatible
    * representation of it, based on the privileges of the given global.
    *
-   * @param {value} value
+   * @param {*} value
    *        The value to sanitize.
    * @param {Context} context
    *        The extension context in which to sanitize the value
-   * @returns {value}
+   * @returns {*}
    *        The sanitized value.
    */
   sanitize(value, context) {

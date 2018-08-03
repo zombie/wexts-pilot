@@ -13,7 +13,7 @@
 
 /* exported ExtensionCommon */
 
-var EXPORTED_SYMBOLS = ["ExtensionCommon"];
+this.EXPORTED_SYMBOLS = ["ExtensionCommon", "SchemaAPIManager"];
 
 ChromeUtils.import("resource://gre/modules/Services.jsm");
 ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -56,8 +56,6 @@ XPCOMUtils.defineLazyGetter(this, "console", getConsole);
 
 XPCOMUtils.defineLazyPreferenceGetter(this, "DELAYED_BG_STARTUP",
                                       "extensions.webextensions.background-delayed-startup");
-
-var ExtensionCommon;
 
 // Run a function and report exceptions.
 function runSafeSyncWithoutClone(f, ...args) {
@@ -113,7 +111,7 @@ function withHandlingUserInput(window, callable) {
  *
  * @param {object} object
  *        The prototype object on which to define the getter.
- * @param {string|Symbol} prop
+ * @param {string|symbol} prop
  *        The property name for which to define the getter.
  * @param {function} getter
  *        The function to call in order to generate the final property
@@ -268,6 +266,7 @@ class EventEmitter {
       this.off(event, wrapper);
       this[ONCE_MAP].delete(listener);
 
+      // @ts-ignore
       return listener(...args);
     };
     this[ONCE_MAP].set(listener, wrapper);
@@ -283,7 +282,7 @@ class EventEmitter {
    *
    * @param {string} event
    *       The name of the event to emit.
-   * @param {any} args
+   * @param {...any} args
    *        Arbitrary arguments to pass to the listener functions, after
    *        the event name.
    * @returns {Promise?}
@@ -322,6 +321,7 @@ class ExtensionAPI extends EventEmitter {
     super();
 
     this.extension = extension;
+    this.onShutdown = null;
 
     extension.once("shutdown", () => {
       if (this.onShutdown) {
@@ -365,6 +365,8 @@ class BaseContext {
     this.docShell = null;
     this.contentWindow = null;
     this.innerWindowID = 0;
+    this.childManager = null;
+    this.viewType = null;
   }
 
   setContentWindow(contentWindow) {
@@ -412,10 +414,12 @@ class BaseContext {
     });
   }
 
+  /** @returns {any} */
   get cloneScope() {
     throw new Error("Not implemented");
   }
 
+  /** @returns {any} */
   get principal() {
     throw new Error("Not implemented");
   }
@@ -479,7 +483,7 @@ class BaseContext {
    * Safely call JSON.stringify() on an object that comes from an
    * extension.
    *
-   * @param {array<any>} args Arguments for JSON.stringify()
+   * @param {Array<any>} args Arguments for JSON.stringify()
    * @returns {string} The stringified representation of obj
    */
   jsonStringify(...args) {
@@ -967,15 +971,16 @@ function mergePaths(dest, source) {
 /**
  * Manages loading and accessing a set of APIs for a specific extension
  * context.
- *
- * @param {BaseContext} context
- *        The context to manage APIs for.
- * @param {SchemaAPIManager} apiManager
- *        The API manager holding the APIs to manage.
- * @param {object} root
- *        The root object into which APIs will be injected.
  */
 class CanOfAPIs {
+  /**
+   * @param {BaseContext} context
+   *        The context to manage APIs for.
+   * @param {SchemaAPIManager} apiManager
+   *        The API manager holding the APIs to manage.
+   * @param {object} root
+   *        The root object into which APIs will be injected.
+   */
   constructor(context, apiManager, root) {
     this.context = context;
     this.scopeName = context.envType;
@@ -1164,7 +1169,7 @@ class CanOfAPIs {
  * This class instance is shared with the scripts that it loads, so that the
  * ext-*.js scripts and the instantiator can communicate with each other.
  */
-class SchemaAPIManager extends EventEmitter {
+var SchemaAPIManager = class SchemaAPIManager extends EventEmitter {
   /**
    * @param {string} processType
    *     "main" - The main, one and only chrome browser process.
@@ -1172,7 +1177,7 @@ class SchemaAPIManager extends EventEmitter {
    *     "content" - A content process.
    *     "devtools" - A devtools process.
    *     "proxy" - A proxy script process.
-   * @param {SchemaRoot} schema
+   * @param {SchemaRoot|typeof Schemas} [schema]
    */
   constructor(processType, schema) {
     super();
@@ -1194,6 +1199,10 @@ class SchemaAPIManager extends EventEmitter {
     this.apis = new DefaultWeakMap(() => new Map());
 
     this._scriptScopes = [];
+  }
+
+  lazyInit() {
+    // Abstract.
   }
 
   onStartup(extension) {
@@ -1409,7 +1418,7 @@ class SchemaAPIManager extends EventEmitter {
    * @param {string} name
    *        The name of the module to load.
    *
-   * @returns {class}
+   * @returns {typeof ExtensionAPI}
    */
   loadModule(name) {
     let module = this.modules.get(name);
@@ -1434,7 +1443,7 @@ class SchemaAPIManager extends EventEmitter {
    * @param {string} name
    *        The name of the module to load.
    *
-   * @returns {Promise<class>}
+   * @returns {Promise}
    */
   asyncLoadModule(name) {
     let module = this.modules.get(name);
@@ -1670,24 +1679,27 @@ defineLazyGetter(MultiAPIManager.prototype, "schema", function() {
 });
 
 
-function LocaleData(data) {
-  this.defaultLocale = data.defaultLocale;
-  this.selectedLocale = data.selectedLocale;
-  this.locales = data.locales || new Map();
-  this.warnedMissingKeys = new Set();
+class LocaleData {
+  constructor(data) {
+    this.defaultLocale = data.defaultLocale;
+    this.selectedLocale = data.selectedLocale;
+    this.locales = data.locales || new Map();
+    this.warnedMissingKeys = new Set();
 
-  // Map(locale-name -> Map(message-key -> localized-string))
-  //
-  // Contains a key for each loaded locale, each of which is a
-  // Map of message keys to their localized strings.
-  this.messages = data.messages || new Map();
+    this.BUILTIN = "@@BUILTIN_MESSAGES";
+    this.availableLocales = null;
 
-  if (data.builtinMessages) {
-    this.messages.set(this.BUILTIN, data.builtinMessages);
+    // Map(locale-name -> Map(message-key -> localized-string))
+    //
+    // Contains a key for each loaded locale, each of which is a
+    // Map of message keys to their localized strings.
+    this.messages = data.messages || new Map();
+
+    if (data.builtinMessages) {
+      this.messages.set(this.BUILTIN, data.builtinMessages);
+    }
   }
-}
 
-LocaleData.prototype = {
   // Representation of the object to send to content processes. This
   // should include anything the content process might need.
   serialize() {
@@ -1697,13 +1709,11 @@ LocaleData.prototype = {
       messages: this.messages,
       locales: this.locales,
     };
-  },
-
-  BUILTIN: "@@BUILTIN_MESSAGES",
+  }
 
   has(locale) {
     return this.messages.has(locale);
-  },
+  }
 
   // https://developer.chrome.com/extensions/i18n
   localizeMessage(message, substitutions = [], options = {}) {
@@ -1777,7 +1787,7 @@ LocaleData.prototype = {
       this.warnedMissingKeys.add(message);
     }
     return options.defaultValue;
-  },
+  }
 
   // Localize a string, replacing all |__MSG_(.*)__| tokens with the
   // matching string from the current locale, as determined by
@@ -1793,7 +1803,7 @@ LocaleData.prototype = {
     return str.replace(/__MSG_([A-Za-z0-9@_]+?)__/g, (matched, message) => {
       return this.localizeMessage(message, [], {locale, defaultValue: matched});
     });
-  },
+  }
 
   // Validates the contents of a locale JSON file, normalizes the
   // messages into a Map of message key -> localized string pairs.
@@ -1852,18 +1862,17 @@ LocaleData.prototype = {
 
     this.messages.set(locale, result);
     return result;
-  },
+  }
 
   get acceptLanguages() {
     let result = Services.prefs.getComplexValue("intl.accept_languages", Ci.nsIPrefLocalizedString).data;
     return result.split(/\s*,\s*/g);
-  },
-
+  }
 
   get uiLocale() {
     return Services.locale.getAppLocaleAsBCP47();
-  },
-};
+  }
+}
 
 defineLazyGetter(LocaleData.prototype, "availableLocales", function() {
   return new Set([this.BUILTIN, this.selectedLocale, this.defaultLocale]
@@ -2294,8 +2303,7 @@ const stylesheetMap = new DefaultMap(url => {
   return styleSheetService.preloadSheet(uri, styleSheetService.AGENT_SHEET);
 });
 
-
-ExtensionCommon = {
+var ExtensionCommon = {
   BaseContext,
   CanOfAPIs,
   EventManager,
